@@ -1,0 +1,16 @@
+# Python virtual environment
+.venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Streamlit temp / cache
+.streamlit/
+
+# System files
+AppData/
+*.log
+*.tmp
+
