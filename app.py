@@ -961,3 +961,105 @@ elif selected_page == "📊 İlerleme":
 
 elif selected_page == "⚙️ Ayarlar":
     ayarlar()
+
+# Dersler fonksiyonu
+def dersler():
+    st.markdown("<h1 class='main-header'>📖 Python Dersleri</h1>", unsafe_allow_html=True)
+    st.write("Adım adım Python öğren! Her ders video eşliğinde, kod örnekleriyle.")
+    
+    dersler_listesi = tum_dersleri_yukle()
+    
+    if not dersler_listesi:
+        st.warning("📂 Henüz ders içeriği yüklenmemiş.")
+        st.info("""
+        **Ders eklemek için:**
+        1. `data/dersler/` klasörü oluştur
+        2. JSON formatında ders dosyalarını ekle
+        3. Örnek format:
+```json
+{
+  "konu_id": 1,
+  "konu_baslik": "Stringler",
+  "aciklama": "Metin işlemleri",
+  "seviye": "başlangıç"
+}
+```
+        """)
+        return
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📚 Toplam Ders", len(dersler_listesi))
+    with col2:
+        tamamlanan = len(st.session_state.ilerleme['tamamlanan_dersler'])
+        st.metric("✅ Tamamlanan", tamamlanan)
+    with col3:
+        if len(dersler_listesi) > 0:
+            yuzde = int((tamamlanan / len(dersler_listesi)) * 100)
+            st.metric("📊 İlerleme", f"%{yuzde}")
+
+    st.markdown("---")
+
+    for ders in dersler_listesi:
+        konu_id = ders.get('konu_id', 0)
+        konu_baslik = ders.get('konu_baslik', 'İsimsiz Ders')
+        aciklama = ders.get('aciklama', '')
+        seviye = ders.get('seviye', 'başlangıç')
+        
+        tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
+        icon = "✅" if tamamlandi else "📌"
+        
+        with st.expander(f"{icon} {konu_baslik} - {seviye.title()}", expanded=False):
+            st.write(f"**📝 Açıklama:** {aciklama}")
+            
+            # Video linki varsa göster
+            if 'video_link' in ders:
+                st.markdown(f"🎥 **Video:** [{ders.get('video_suresi', 'İzle')}]({ders['video_link']})")
+            
+            # Detaylı içerik varsa göster
+            ders_icerik = ders.get('ders_icerik', {})
+            if ders_icerik:
+                if 'detayli_aciklama' in ders_icerik:
+                    st.markdown("### 📚 Detaylı Açıklama")
+                    st.write(ders_icerik['detayli_aciklama'])
+                
+                if 'ana_kavramlar' in ders_icerik:
+                    st.markdown("### 🔑 Ana Kavramlar")
+                    for kavram in ders_icerik['ana_kavramlar']:
+                        st.write(f"• {kavram}")
+            
+            # Kod örnekleri varsa göster
+            kod_ornekleri = ders.get('kod_ornekleri', [])
+            if kod_ornekleri:
+                st.markdown("### 💻 Kod Örnekleri")
+                for idx, ornek in enumerate(kod_ornekleri):
+                    st.write(f"**{ornek.get('baslik', f'Örnek {idx+1}')}**")
+                    if 'aciklama' in ornek:
+                        st.info(ornek['aciklama'])
+                    
+                    kod = ornek.get('kod', '')
+                    st.code(kod, language='python')
+                    
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button(f"🚀 Çalıştır", key=f"kod_ornek_{konu_id}_{idx}"):
+                            st.session_state.deneme_kodu = kod
+                            st.session_state.current_page = "💻 Kod Sandbox"
+                            st.rerun()
+                    with col2:
+                        if st.button(f"📋 Sandbox'a Kopyala", key=f"kopyala_{konu_id}_{idx}"):
+                            st.session_state.deneme_kodu = kod
+                            st.success("✅ Kod Sandbox'a kopyalandı!")
+            
+            st.markdown("---")
+            
+            if tamamlandi:
+                st.success("✅ Bu dersi tamamladın!")
+            else:
+                if st.button("✓ Dersi Tamamla", key=f"tamam_ders_{konu_id}", type="primary"):
+                    if konu_id not in st.session_state.ilerleme['tamamlanan_dersler']:
+                        st.session_state.ilerleme['tamamlanan_dersler'].append(konu_id)
+                        st.session_state.ilerleme['basari_puani'] += 10
+                        ilerleme_kaydet()
+                        st.balloons()
+                        st.rerun()
