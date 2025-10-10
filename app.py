@@ -147,7 +147,6 @@ def kod_sandbox():
     st.markdown("<h1 class='main-header'>💻 Python Kod Sandbox</h1>", unsafe_allow_html=True)
     st.write("Kodunu yaz ve çalıştır! Hataları gör, öğren!")
     
-    # Eğer derslerden kod geldiyse onu göster
     if st.session_state.deneme_kodu:
         default_code = st.session_state.deneme_kodu
         st.success("🎯 Derslerden kod yüklendi! Hemen dene...")
@@ -170,7 +169,6 @@ for i in range(1, 6):
     print(f"Sayı: {i}")
 '''
     
-    # Kod editörü
     user_code = st.text_area(
         "Python Kodunuz:",
         value=default_code,
@@ -183,7 +181,6 @@ for i in range(1, 6):
     with col1:
         if st.button("🚀 Kodu Çalıştır", type="primary", use_container_width=True):
             try:
-                # Çıktıyı yakala
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
                     exec(user_code, {'__builtins__': __builtins__})
@@ -207,7 +204,6 @@ for i in range(1, 6):
     with col3:
         st.write("💡 Kod denemesi:", st.session_state.ilerleme['toplam_kod_denemesi'])
     
-    # Çıktıyı göster
     if st.session_state.last_output:
         st.subheader("📤 Çıktı:")
         if "HATA:" in st.session_state.last_output:
@@ -215,7 +211,6 @@ for i in range(1, 6):
         else:
             st.success(st.session_state.last_output)
     
-    # Hızlı örnek kodlar
     with st.expander("📚 Hızlı Örnek Kodlar"):
         col1, col2, col3 = st.columns(3)
         
@@ -365,56 +360,41 @@ def dersler():
         2. JSON formatında ders dosyalarını ekle
         3. Örnek format:
 ```json
-        {
-          "konu_id": 1,
-          "konu_baslik": "Stringler",
-          "aciklama": "Metin işlemleri",
-          "seviye": "başlangıç",
-          "ders_icerik": {...},
-          "kod_ornekleri": [...],
-          "video_link": "..."
-        }
+{
+  "konu_id": 1,
+  "konu_baslik": "Stringler",
+  "aciklama": "Metin işlemleri",
+  "seviye": "başlangıç"
+}
+```
         """)
-    return
-
-# Ders istatistikleri
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("📚 Toplam Ders", len(dersler_listesi))
-with col2:
-    tamamlanan = len(st.session_state.ilerleme['tamamlanan_dersler'])
-    st.metric("✅ Tamamlanan", tamamlanan)
-with col3:
-    if len(dersler_listesi) > 0:
-        yuzde = int((tamamlanan / len(dersler_listesi)) * 100)
-        st.metric("📊 İlerleme", f"%{yuzde}")
-
-st.markdown("---")
-
-# Dersleri göster
-for ders in dersler_listesi:
-    konu_id = ders.get('konu_id', 0)
-    konu_baslik = ders.get('konu_baslik', 'İsimsiz Ders')
-    aciklama = ders.get('aciklama', '')
-    seviye = ders.get('seviye', 'başlangıç')
-    video_link = ders.get('video_link', '')
-    video_suresi = ders.get('video_suresi', '')
+        return
     
-    # Tamamlanmış mı kontrol et
-    tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
-    icon = "✅" if tamamlandi else "📌"
-    
-    with st.expander(f"{icon} {konu_baslik} - {seviye.title()}", expanded=False):
-        col1, col2 = st.columns([3, 1])
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📚 Toplam Ders", len(dersler_listesi))
+    with col2:
+        tamamlanan = len(st.session_state.ilerleme['tamamlanan_dersler'])
+        st.metric("✅ Tamamlanan", tamamlanan)
+    with col3:
+        if len(dersler_listesi) > 0:
+            yuzde = int((tamamlanan / len(dersler_listesi)) * 100)
+            st.metric("📊 İlerleme", f"%{yuzde}")
+
+    st.markdown("---")
+
+    for ders in dersler_listesi:
+        konu_id = ders.get('konu_id', 0)
+        konu_baslik = ders.get('konu_baslik', 'İsimsiz Ders')
+        aciklama = ders.get('aciklama', '')
+        seviye = ders.get('seviye', 'başlangıç')
         
-        with col1:
+        tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
+        icon = "✅" if tamamlandi else "📌"
+        
+        with st.expander(f"{icon} {konu_baslik} - {seviye.title()}", expanded=False):
             st.write(f"**📝 Açıklama:** {aciklama}")
-            if video_suresi:
-                st.write(f"**🎬 Süre:** {video_suresi}")
-            if video_link:
-                st.write(f"**🔗 Video:** [YouTube'da İzle]({video_link})")
-        
-        with col2:
+            
             if tamamlandi:
                 st.success("✅ Tamamlandı")
             else:
@@ -424,225 +404,171 @@ for ders in dersler_listesi:
                         st.session_state.ilerleme['basari_puani'] += 10
                         ilerleme_kaydet()
                         st.rerun()
-        
-        # Ders içeriği detayları
-        if 'ders_icerik' in ders:
-            icerik = ders['ders_icerik']
-            st.subheader("📚 Ders İçeriği")
-            
-            if isinstance(icerik, dict):
-                if 'detayli_aciklama' in icerik:
-                    st.write(icerik['detayli_aciklama'])
-                if 'ana_kavramlar' in icerik:
-                    st.write("**🎯 Ana Kavramlar:**")
-                    for kavram in icerik['ana_kavramlar']:
-                        st.write(f"  • {kavram}")
-            else:
-                st.write(icerik)
-        
-        # Kod örnekleri
-        if 'kod_ornekleri' in ders:
-            st.subheader("💻 Kod Örnekleri")
-            for idx, ornek in enumerate(ders['kod_ornekleri']):
-                if isinstance(ornek, dict):
-                    st.write(f"**{ornek.get('baslik', f'Örnek {idx+1}')}**")
-                    if 'aciklama' in ornek:
-                        st.write(ornek['aciklama'])
-                    st.code(ornek.get('kod', ''), language='python')
-                    
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        if st.button(f"🚀 Sandbox'ta Dene", key=f"dene_{konu_id}_{idx}"):
-                            st.session_state.deneme_kodu = ornek.get('kod', '')
-                            st.session_state.current_page = "💻 Kod Sandbox"
-                            st.success("🎯 Kod Sandbox'a yönlendiriliyor...")
-                            st.rerun()
-                else:
-                    st.code(ornek, language='python')
-        
-        # Pratik alıştırmalar
-        if 'pratik_alistirmalar' in ders:
-            st.subheader("✏️ Pratik Alıştırmalar")
-            for idx, alistirma in enumerate(ders['pratik_alistirmalar']):
-                st.write(f"{idx+1}. {alistirma}")
 
-testler_listesi = tum_testleri_yukle()
-
-if not testler_listesi:
-    st.warning("📂 Henüz test içeriği yüklenmemiş.")
-    st.info("""
-    **Test eklemek için:**
-    1. `data/testler/` klasörü oluştur
-    2. JSON formatında test dosyalarını ekle
-    3. Örnek format için derslerdeki test_sorulari yapısını kullan
-    """)
-    return
-
-# Test istatistikleri
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("📝 Toplam Test", len(testler_listesi))
-with col2:
-    cozulen = len(st.session_state.ilerleme['cozulen_testler'])
-    st.metric("✅ Çözülen", cozulen)
-with col3:
-    basari = st.session_state.ilerleme.get('basari_puani', 0)
-    st.metric("⭐ Başarı Puanı", basari)
-
-st.markdown("---")
-
-# Testleri göster
-for test_data in testler_listesi:
-    test_id = test_data.get('konu_id', 0)
-    konu = test_data.get('konu_baslik', 'İsimsiz Test')
-    sorular = test_data.get('test_sorulari', [])
+# Testler fonksiyonu
+def testler():
+    st.markdown("<h1 class='main-header'>🎯 Python Testleri</h1>", unsafe_allow_html=True)
     
-    if not sorular:
-        continue
+    testler_listesi = tum_testleri_yukle()
     
-    cozuldu = test_id in st.session_state.ilerleme['cozulen_testler']
-    icon = "✅" if cozuldu else "📝"
-    
-    with st.expander(f"{icon} {konu} - {len(sorular)} soru", expanded=False):
-        if cozuldu:
-            st.success(f"✅ Bu test çözüldü! Skor: {st.session_state.test_sonuclari.get(test_id, 0)}/{len(sorular)}")
-            if st.button(f"🔄 Tekrar Çöz", key=f"tekrar_{test_id}"):
-                st.session_state.aktif_test = test_id
-                st.session_state.test_cevaplari = {}
-                st.rerun()
-        else:
-            if st.button(f"▶️ Teste Başla", key=f"baslat_{test_id}", type="primary"):
-                st.session_state.aktif_test = test_id
-                st.session_state.test_cevaplari = {}
-                st.rerun()
+    if not testler_listesi:
+        st.warning("📂 Henüz test içeriği yüklenmemiş.")
+        st.info("Test dosyalarını `data/testler/` klasörüne ekleyin.")
+        return
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("📝 Toplam Test", len(testler_listesi))
+    with col2:
+        cozulen = len(st.session_state.ilerleme['cozulen_testler'])
+        st.metric("✅ Çözülen", cozulen)
+    with col3:
+        basari = st.session_state.ilerleme.get('basari_puani', 0)
+        st.metric("⭐ Başarı Puanı", basari)
+
+    st.markdown("---")
+
+    for test_data in testler_listesi:
+        test_id = test_data.get('konu_id', 0)
+        konu = test_data.get('konu_baslik', 'İsimsiz Test')
+        sorular = test_data.get('test_sorulari', [])
         
-        # Aktif test ise soruları göster
-        if st.session_state.aktif_test == test_id:
-            st.subheader("🎯 Test Soruları")
-            
-            for idx, soru_data in enumerate(sorular):
-                st.write(f"**Soru {idx+1}:** {soru_data.get('soru', '')}")
-                
-                secenekler = soru_data.get('secenekler', [])
-                dogru_cevap = soru_data.get('cevap', '')
-                
-                # Kullanıcı cevabı
-                cevap = st.radio(
-                    "Cevabınız:",
-                    secenekler,
-                    key=f"soru_{test_id}_{idx}",
-                    index=None
-                )
-                
-                if cevap:
-                    st.session_state.test_cevaplari[idx] = cevap[0]  # A, B, C, D
-                
-                st.markdown("---")
-            
-            # Test gönderme
-            if len(st.session_state.test_cevaplari) == len(sorular):
-                if st.button("📤 Testi Gönder", type="primary", key=f"gonder_{test_id}"):
-                    dogru_sayisi = 0
-                    for idx, soru_data in enumerate(sorular):
-                        if st.session_state.test_cevaplari.get(idx) == soru_data.get('cevap'):
-                            dogru_sayisi += 1
-                    
-                    # Sonuçları kaydet
-                    st.session_state.test_sonuclari[test_id] = dogru_sayisi
-                    if test_id not in st.session_state.ilerleme['cozulen_testler']:
-                        st.session_state.ilerleme['cozulen_testler'].append(test_id)
-                        st.session_state.ilerleme['basari_puani'] += dogru_sayisi * 5
-                    
-                    ilerleme_kaydet()
-                    st.session_state.aktif_test = None
+        if not sorular:
+            continue
+        
+        cozuldu = test_id in st.session_state.ilerleme['cozulen_testler']
+        icon = "✅" if cozuldu else "📝"
+        
+        with st.expander(f"{icon} {konu} - {len(sorular)} soru", expanded=False):
+            if cozuldu:
+                st.success(f"✅ Bu test çözüldü! Skor: {st.session_state.test_sonuclari.get(test_id, 0)}/{len(sorular)}")
+                if st.button(f"🔄 Tekrar Çöz", key=f"tekrar_{test_id}"):
+                    st.session_state.aktif_test = test_id
                     st.session_state.test_cevaplari = {}
                     st.rerun()
-
-bulmacalar_listesi = tum_bulmacalari_yukle()
-
-if not bulmacalar_listesi:
-    st.warning("📂 Henüz bulmaca içeriği yüklenmemiş.")
-    st.info("""
-    **Bulmaca eklemek için:**
-    1. `data/bulmacalar/` klasörü oluştur
-    2. JSON formatında bulmaca dosyalarını ekle
-    3. Örnek format için derslerdeki bulmacalar yapısını kullan
-    """)
-    return
-
-# Bulmaca istatistikleri
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("🧩 Toplam Bulmaca", len(bulmacalar_listesi))
-with col2:
-    cozulen = len(st.session_state.ilerleme['cozulen_bulmacalar'])
-    st.metric("✅ Çözülen", cozulen)
-with col3:
-    basari = st.session_state.ilerleme.get('basari_puani', 0)
-    st.metric("⭐ Başarı Puanı", basari)
-
-st.markdown("---")
-
-# Bulmacaları göster
-for bulmaca_data in bulmacalar_listesi:
-    bulmaca_id = bulmaca_data.get('konu_id', 0)
-    konu = bulmaca_data.get('konu_baslik', 'İsimsiz Bulmaca')
-    bulmacalar = bulmaca_data.get('bulmacalar', [])
-    
-    if not bulmacalar:
-        continue
-    
-    cozuldu = bulmaca_id in st.session_state.ilerleme['cozulen_bulmacalar']
-    icon = "✅" if cozuldu else "🧩"
-    
-    with st.expander(f"{icon} {konu} - {len(bulmacalar)} bulmaca", expanded=False):
-        for idx, bulmaca in enumerate(bulmacalar):
-            st.subheader(f"🎯 Bulmaca {idx+1}")
-            st.write(f"**Görev:** {bulmaca.get('soru', '')}")
+            else:
+                if st.button(f"▶️ Teste Başla", key=f"baslat_{test_id}", type="primary"):
+                    st.session_state.aktif_test = test_id
+                    st.session_state.test_cevaplari = {}
+                    st.rerun()
             
-            if 'ipucu' in bulmaca:
-                with st.expander("💡 İpucu"):
-                    st.info(bulmaca['ipucu'])
-            
-            if 'zorluk' in bulmaca:
-                zorluk_renk = {
-                    'kolay': '🟢',
-                    'orta': '🟡',
-                    'zor': '🔴'
-                }
-                st.write(f"**Zorluk:** {zorluk_renk.get(bulmaca['zorluk'], '⚪')} {bulmaca['zorluk'].title()}")
-            
-            # Çözüm alanı
-            cozum_kodu = st.text_area(
-                "Çözümünüz:",
-                height=200,
-                key=f"bulmaca_{bulmaca_id}_{idx}"
-            )
-            
-            col1, col2 = st.columns([1, 3])
-            
-            with col1:
-                if st.button(f"🚀 Çalıştır", key=f"calistir_bulmaca_{bulmaca_id}_{idx}"):
-                    try:
-                        output = io.StringIO()
-                        with contextlib.redirect_stdout(output):
-                            exec(cozum_kodu, {'__builtins__': __builtins__})
-                        st.success("✅ Kod çalıştı!")
-                        st.code(output.getvalue())
-                    except Exception as e:
-                        st.error(f"❌ Hata: {str(e)}")
-            
-            with st.expander("🔍 Çözümü Gör"):
-                st.code(bulmaca.get('cozum', ''), language='python')
-                if st.button(f"✅ Çözdüm!", key=f"cozdum_{bulmaca_id}_{idx}"):
-                    if bulmaca_id not in st.session_state.ilerleme['cozulen_bulmacalar']:
-                        st.session_state.ilerleme['cozulen_bulmacalar'].append(bulmaca_id)
-                        st.session_state.ilerleme['basari_puani'] += 15
+            if st.session_state.aktif_test == test_id:
+                st.subheader("🎯 Test Soruları")
+                
+                for idx, soru_data in enumerate(sorular):
+                    st.write(f"**Soru {idx+1}:** {soru_data.get('soru', '')}")
+                    
+                    secenekler = soru_data.get('secenekler', [])
+                    
+                    cevap = st.radio(
+                        "Cevabınız:",
+                        secenekler,
+                        key=f"soru_{test_id}_{idx}",
+                        index=None
+                    )
+                    
+                    if cevap:
+                        st.session_state.test_cevaplari[idx] = cevap[0]
+                    
+                    st.markdown("---")
+                
+                if len(st.session_state.test_cevaplari) == len(sorular):
+                    if st.button("📤 Testi Gönder", type="primary", key=f"gonder_{test_id}"):
+                        dogru_sayisi = 0
+                        for idx, soru_data in enumerate(sorular):
+                            if st.session_state.test_cevaplari.get(idx) == soru_data.get('cevap'):
+                                dogru_sayisi += 1
+                        
+                        st.session_state.test_sonuclari[test_id] = dogru_sayisi
+                        if test_id not in st.session_state.ilerleme['cozulen_testler']:
+                            st.session_state.ilerleme['cozulen_testler'].append(test_id)
+                            st.session_state.ilerleme['basari_puani'] += dogru_sayisi * 5
+                        
                         ilerleme_kaydet()
-                        st.success("🎉 Tebrikler!
+                        st.session_state.aktif_test = None
+                        st.session_state.test_cevaplari = {}
+                        st.rerun()
 
+# Bulmacalar fonksiyonu
+def bulmacalar():
+    st.markdown("<h1 class='main-header'>🧩 Kod Bulmacaları</h1>", unsafe_allow_html=True)
+    
+    bulmacalar_listesi = tum_bulmacalari_yukle()
+    
+    if not bulmacalar_listesi:
+        st.warning("📂 Henüz bulmaca içeriği yüklenmemiş.")
+        st.info("Bulmaca dosyalarını `data/bulmacalar/` klasörüne ekleyin.")
+        return
 
-st.rerun()
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("🧩 Toplam Bulmaca", len(bulmacalar_listesi))
+    with col2:
+        cozulen = len(st.session_state.ilerleme['cozulen_bulmacalar'])
+        st.metric("✅ Çözülen", cozulen)
+    with col3:
+        basari = st.session_state.ilerleme.get('basari_puani', 0)
+        st.metric("⭐ Başarı Puanı", basari)
+
+    st.markdown("---")
+
+    for bulmaca_data in bulmacalar_listesi:
+        bulmaca_id = bulmaca_data.get('konu_id', 0)
+        konu = bulmaca_data.get('konu_baslik', 'İsimsiz Bulmaca')
+        bulmacalar_list = bulmaca_data.get('bulmacalar', [])
+        
+        if not bulmacalar_list:
+            continue
+        
+        cozuldu = bulmaca_id in st.session_state.ilerleme['cozulen_bulmacalar']
+        icon = "✅" if cozuldu else "🧩"
+        
+        with st.expander(f"{icon} {konu} - {len(bulmacalar_list)} bulmaca", expanded=False):
+            for idx, bulmaca in enumerate(bulmacalar_list):
+                st.subheader(f"🎯 Bulmaca {idx+1}")
+                st.write(f"**Görev:** {bulmaca.get('soru', '')}")
+                
+                if 'ipucu' in bulmaca:
+                    with st.expander("💡 İpucu"):
+                        st.info(bulmaca['ipucu'])
+                
+                if 'zorluk' in bulmaca:
+                    zorluk_renk = {
+                        'kolay': '🟢',
+                        'orta': '🟡',
+                        'zor': '🔴'
+                    }
+                    st.write(f"**Zorluk:** {zorluk_renk.get(bulmaca['zorluk'], '⚪')} {bulmaca['zorluk'].title()}")
+                
+                cozum_kodu = st.text_area(
+                    "Çözümünüz:",
+                    height=200,
+                    key=f"bulmaca_{bulmaca_id}_{idx}"
+                )
+                
+                col1, col2 = st.columns([1, 3])
+                
+                with col1:
+                    if st.button(f"🚀 Çalıştır", key=f"calistir_bulmaca_{bulmaca_id}_{idx}"):
+                        try:
+                            output = io.StringIO()
+                            with contextlib.redirect_stdout(output):
+                                exec(cozum_kodu, {'__builtins__': __builtins__})
+                            st.success("✅ Kod çalıştı!")
+                            if output.getvalue():
+                                st.code(output.getvalue())
+                        except Exception as e:
+                            st.error(f"❌ Hata: {str(e)}")
+                
+                with st.expander("🔍 Çözümü Gör"):
+                    st.code(bulmaca.get('cozum', ''), language='python')
+                    if st.button(f"✅ Çözdüm!", key=f"cozdum_{bulmaca_id}_{idx}"):
+                        if bulmaca_id not in st.session_state.ilerleme['cozulen_bulmacalar']:
+                            st.session_state.ilerleme['cozulen_bulmacalar'].append(bulmaca_id)
+                            st.session_state.ilerleme['basari_puani'] += 15
+                            ilerleme_kaydet()
+                            st.success("🎉 Tebrikler!")
+                            st.rerun()
                 
                 st.markdown("---")
 
@@ -651,58 +577,43 @@ def ilerleme():
     st.markdown("<h1 class='main-header'>📊 Öğrenme İlerlemen</h1>", unsafe_allow_html=True)
     st.write("Ne kadar yol kat ettiğini gör, hedeflerine ulaş!")
     
-    # İlerleme verilerini yükle
     ilerleme_yukle()
     
-    # Genel istatistikler
-    st.subheader("📈 Genel İstatistikler")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
         st.metric(
             "📚 Tamamlanan Dersler",
             len(st.session_state.ilerleme['tamamlanan_dersler'])
         )
-        st.markdown("</div>", unsafe_allow_html=True)
     
     with col2:
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
         st.metric(
             "🎯 Çözülen Testler",
             len(st.session_state.ilerleme['cozulen_testler'])
         )
-        st.markdown("</div>", unsafe_allow_html=True)
     
     with col3:
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
         st.metric(
             "🧩 Çözülen Bulmacalar",
             len(st.session_state.ilerleme['cozulen_bulmacalar'])
         )
-        st.markdown("</div>", unsafe_allow_html=True)
     
     with col4:
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
         st.metric(
             "💻 Kod Denemeleri",
             st.session_state.ilerleme['toplam_kod_denemesi']
         )
-        st.markdown("</div>", unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Başarı puanı
     st.subheader("⭐ Başarı Puanın")
     basari_puani = st.session_state.ilerleme.get('basari_puani', 0)
-    
-    # Progress bar
-    max_puan = 1000  # Örnek maksimum puan
+    max_puan = 1000
     progress = min(basari_puani / max_puan, 1.0)
     st.progress(progress)
     st.write(f"**{basari_puani} / {max_puan}** puan")
     
-    # Seviye sistemi
     if basari_puani < 100:
         seviye = "🥉 Başlangıç"
     elif basari_puani < 300:
@@ -716,49 +627,6 @@ def ilerleme():
     
     st.markdown("---")
     
-    # Detaylı analiz
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📚 Ders İlerlemesi")
-        dersler = tum_dersleri_yukle()
-        if dersler:
-            toplam_ders = len(dersler)
-            tamamlanan = len(st.session_state.ilerleme['tamamlanan_dersler'])
-            yuzde = int((tamamlanan / toplam_ders * 100)) if toplam_ders > 0 else 0
-            
-            st.metric("İlerleme", f"%{yuzde}")
-            st.progress(yuzde / 100)
-            st.write(f"{tamamlanan} / {toplam_ders} ders tamamlandı")
-        else:
-            st.info("Henüz ders yüklenmemiş")
-    
-    with col2:
-        st.subheader("🎯 Test Başarısı")
-        if st.session_state.test_sonuclari:
-            toplam_dogru = sum(st.session_state.test_sonuclari.values())
-            toplam_soru = len(st.session_state.test_sonuclari) * 3  # Ortalama 3 soru varsayımı
-            basari_orani = int((toplam_dogru / toplam_soru * 100)) if toplam_soru > 0 else 0
-            
-            st.metric("Başarı Oranı", f"%{basari_orani}")
-            st.progress(basari_orani / 100)
-            st.write(f"{toplam_dogru} doğru cevap")
-        else:
-            st.info("Henüz test çözülmemiş")
-    
-    st.markdown("---")
-    
-    # Aktivite geçmişi
-    st.subheader("📅 Son Aktiviteler")
-    st.info("""
-    **🎯 Sonraki Hedefler:**
-    - Tamamlanmayan dersleri bitir
-    - Tüm testleri çöz
-    - Bulmacalara göz at
-    - Kod Sandbox'ta pratik yap
-    """)
-    
-    # İstatistikleri sıfırlama
     with st.expander("⚠️ Tehlikeli Alan"):
         st.warning("Tüm ilerleme verilerini sıfırlayabilirsiniz")
         if st.button("🗑️ Tüm İlerlememi Sıfırla", type="secondary"):
@@ -827,44 +695,6 @@ def ayarlar():
         
         st.markdown("---")
         
-        st.subheader("📤 Veri Dışa Aktarma")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if st.button("💾 İlerlememi Yedekle", use_container_width=True):
-                yedek_veri = {
-                    "ilerleme": st.session_state.ilerleme,
-                    "test_sonuclari": st.session_state.test_sonuclari,
-                    "tarih": datetime.now().isoformat()
-                }
-                json_str = json.dumps(yedek_veri, ensure_ascii=False, indent=2)
-                st.download_button(
-                    label="📥 İndir",
-                    data=json_str,
-                    file_name=f"python_journey_yedek_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json"
-                )
-        
-        with col2:
-            if st.button("📊 İstatistikleri Dışa Aktar", use_container_width=True):
-                istatistik_veri = {
-                    "toplam_ders": len(tum_dersleri_yukle()),
-                    "tamamlanan_ders": len(st.session_state.ilerleme['tamamlanan_dersler']),
-                    "cozulen_test": len(st.session_state.ilerleme['cozulen_testler']),
-                    "cozulen_bulmaca": len(st.session_state.ilerleme['cozulen_bulmacalar']),
-                    "kod_denemesi": st.session_state.ilerleme['toplam_kod_denemesi'],
-                    "basari_puani": st.session_state.ilerleme['basari_puani']
-                }
-                json_str = json.dumps(istatistik_veri, ensure_ascii=False, indent=2)
-                st.download_button(
-                    label="📥 İndir",
-                    data=json_str,
-                    file_name=f"istatistikler_{datetime.now().strftime('%Y%m%d')}.json",
-                    mime="application/json"
-                )
-        
-        st.markdown("---")
-        
         st.subheader("📂 Yüklü Dosyalar")
         
         col1, col2, col3 = st.columns(3)
@@ -895,34 +725,11 @@ def ayarlar():
     
     with tab2:
         st.subheader("🎨 Görünüm Ayarları")
-        
-        st.write("**📱 Tema Seçimi**")
-        tema = st.selectbox(
-            "Tema",
-            ["Açık", "Koyu", "Sistem Varsayılanı"],
-            index=0
-        )
-        st.info(f"🎯 {tema} teması seçildi (Streamlit ayarlarından değiştirilebilir)")
-        
-        st.markdown("---")
-        
-        st.write("**🔤 Yazı Boyutu**")
-        yazi_boyutu = st.slider("Yazı Boyutu", 12, 20, 14)
-        st.info(f"Yazı boyutu: {yazi_boyutu}px (Yakında uygulanacak)")
-        
-        st.markdown("---")
-        
-        st.write("**🎭 Görünüm Özellikleri**")
-        animasyon = st.checkbox("Animasyonları Aç", value=True)
-        ses = st.checkbox("Ses Efektleri", value=False)
-        bildirim = st.checkbox("Bildirimler", value=True)
-        
-        if st.button("💾 Ayarları Kaydet"):
-            st.success("✅ Ayarlar kaydedildi!")
+        st.info("Streamlit ayarlarından tema ve yazı boyutunu değiştirebilirsiniz.")
+        st.write("⚙️ Sağ üst köşedeki menüden **Settings** → **Theme** seçeneğine giderek tema değiştirebilirsiniz.")
     
     with tab3:
         st.subheader("ℹ️ Python Journey Hakkında")
-        
         st.markdown("""
         ### 🐍 Python Journey v2.0
         
@@ -934,17 +741,10 @@ def ayarlar():
         - 📊 İlerleme Takibi
         - 📁 JSON Tabanlı İçerik Sistemi
         
-        **Kullanım:**
-        1. JSON formatında ders içerikleri yükle
-        2. Dersleri takip et ve öğren
-        3. Testlerle bilgini pekiştir
-        4. Bulmacalarla pratik yap
-        5. Kod Sandbox'ta dene
-        
         **JSON Format Örnekleri:**
         
         📚 **Ders Formatı:**
-```json
+        ```json
         {
           "konu_id": 1,
           "konu_baslik": "Stringler",
@@ -962,11 +762,13 @@ def ayarlar():
               "kod": "print('Merhaba')",
               "aciklama": "..."
             }
-          ],
-          "test_sorulari": [...],
-          "bulmacalar": [...]
+          ]
         }
-{
+        ```
+        
+        🎯 **Test Formatı:**
+        ```json
+        {
           "konu_id": 1,
           "konu_baslik": "Stringler Testi",
           "test_sorulari": [
@@ -979,8 +781,11 @@ def ayarlar():
             }
           ]
         }
-
-{
+        ```
+        
+        🧩 **Bulmaca Formatı:**
+        ```json
+        {
           "konu_id": 1,
           "konu_baslik": "String Bulmacaları",
           "bulmacalar": [
@@ -992,138 +797,167 @@ def ayarlar():
             }
           ]
         }
-**Geliştirici:** Okan
-    **Versiyon:** 2.0
-    **Tarih:** 2024
+        ```
+        
+        **Geliştirici:** Python Journey Team
+        **Versiyon:** 2.0
+        **Tarih:** 2024
+        
+        ---
+        
+        💡 **İpucu:** JSON dosyalarını `data/` klasörü altında organize edin:
+        - `data/dersler/` - Ders içerikleri
+        - `data/testler/` - Test soruları
+        - `data/bulmacalar/` - Bulmacalar
+        - `data/ilerleme.json` - İlerleme verileri
+        """)
+        
+        st.success("🚀 Öğrenmeye devam et!")
+
+# Sidebar navigasyon
+st.sidebar.title("🐍 Python Journey")
+
+pages = {
+    "🏠 Ana Sayfa": "ana_sayfa",
+    "💻 Kod Sandbox": "kod_sandbox",
+    "📖 Dersler": "dersler",
+    "🎯 Testler": "testler",
+    "🎮 Bulmacalar": "bulmacalar",
+    "📊 İlerleme": "ilerleme",
+    "⚙️ Ayarlar": "ayarlar"
+}
+
+selected_page = st.sidebar.radio("Sayfayı Seç:", list(pages.keys()))
+
+# Ana sayfa içeriği
+if selected_page == "🏠 Ana Sayfa":
+    st.markdown("<h1 class='main-header'>🐍 Python Journey'e Hoş Geldin!</h1>", unsafe_allow_html=True)
     
-    ---
+    col1, col2, col3, col4 = st.columns(4)
     
-    💡 **İpucu:** JSON dosyalarını `data/` klasörü altında organize edin:
-    - `data/dersler/` - Ders içerikleri
-    - `data/testler/` - Test soruları
-    - `data/bulmacalar/` - Bulmacalar
-    - `data/ilerleme.json` - İlerleme verileri
-    """)
+    with col1:
+        dersler = tum_dersleri_yukle()
+        st.metric("📚 Toplam Ders", len(dersler))
     
-    st.success("🚀 Öğrenmeye devam et!")
-
-st.markdown("---")
-
-# Hoş geldin mesajı
-st.success("👋 **Python öğrenme yolculuğuna hoş geldin!**")
-
-# Hızlı istatistikler
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    dersler = tum_dersleri_yukle()
-    st.metric("📚 Toplam Ders", len(dersler))
-
-with col2:
-    testler = tum_testleri_yukle()
-    st.metric("🎯 Toplam Test", len(testler))
-
-with col3:
-    bulmacalar = tum_bulmacalari_yukle()
-    st.metric("🧩 Toplam Bulmaca", len(bulmacalar))
-
-with col4:
-    basari = st.session_state.ilerleme.get('basari_puani', 0)
-    st.metric("⭐ Başarı Puanı", basari)
-
-st.markdown("---")
-
-# Özellikler
-st.subheader("🚀 Özellikler")
-
-col1, col2 = st.columns(2)
-
-with col1:
+    with col2:
+        testler = tum_testleri_yukle()
+        st.metric("🎯 Toplam Test", len(testler))
+    
+    with col3:
+        bulmacalar = tum_bulmacalari_yukle()
+        st.metric("🧩 Toplam Bulmaca", len(bulmacalar))
+    
+    with col4:
+        basari = st.session_state.ilerleme.get('basari_puani', 0)
+        st.metric("⭐ Başarı Puanı", basari)
+    
+    st.markdown("---")
+    
+    st.subheader("🚀 Özellikler")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("""
+        **💻 Kod Sandbox**
+        - Canlı Python editörü
+        - Anında kod çalıştırma
+        - Hata mesajlarıyla öğrenme
+        - Örnek kod şablonları
+        """)
+        
+        st.info("""
+        **📖 İnteraktif Dersler**
+        - Video eşliğinde öğrenme
+        - Kod örnekleriyle pratik
+        - JSON tabanlı içerik
+        - Adım adım ilerleme
+        """)
+    
+    with col2:
+        st.info("""
+        **🎯 Mini Testler**
+        - Çoktan seçmeli sorular
+        - Anında geri bildirim
+        - Başarı takibi
+        - Detaylı açıklamalar
+        """)
+        
+        st.info("""
+        **🎮 Kod Bulmacaları**
+        - Eğlenceli challenge'lar
+        - Zorluk seviyeleri
+        - İpucu sistemi
+        - Çözüm örnekleri
+        """)
+    
+    st.markdown("---")
+    
+    st.subheader("⚡ Hızlı Başlangıç")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("💻 Kod Dene", use_container_width=True, type="primary"):
+            st.session_state.current_page = "💻 Kod Sandbox"
+            st.rerun()
+    
+    with col2:
+        if st.button("📖 Derslere Başla", use_container_width=True):
+            st.session_state.current_page = "📖 Dersler"
+            st.rerun()
+    
+    with col3:
+        if st.button("🎯 Test Çöz", use_container_width=True):
+            st.session_state.current_page = "🎯 Testler"
+            st.rerun()
+    
+    with col4:
+        if st.button("🧩 Bulmaca Çöz", use_container_width=True):
+            st.session_state.current_page = "🎮 Bulmacalar"
+            st.rerun()
+    
+    st.markdown("---")
+    
+    st.subheader("📊 İlerleme Özeti")
+    
+    tamamlanan_ders = len(st.session_state.ilerleme['tamamlanan_dersler'])
+    cozulen_test = len(st.session_state.ilerleme['cozulen_testler'])
+    cozulen_bulmaca = len(st.session_state.ilerleme['cozulen_bulmacalar'])
+    kod_denemesi = st.session_state.ilerleme['toplam_kod_denemesi']
+    
+    if tamamlanan_ders == 0 and cozulen_test == 0 and cozulen_bulmaca == 0:
+        st.info("🎯 **Henüz aktiviten yok!** Yukarıdaki butonlardan birini seçerek başla.")
+    else:
+        st.success(f"""
+        **✨ Harika ilerliyorsun!**
+        - ✅ {tamamlanan_ders} ders tamamlandı
+        - ✅ {cozulen_test} test çözüldü
+        - ✅ {cozulen_bulmaca} bulmaca çözüldü
+        - ✅ {kod_denemesi} kod denemesi yapıldı
+        """)
+    
+    st.markdown("---")
+    
     st.info("""
-    **💻 Kod Sandbox**
-    - Canlı Python editörü
-    - Anında kod çalıştırma
-    - Hata mesajlarıyla öğrenme
-    - Örnek kod şablonları
-    """)
-    
-    st.info("""
-    **📖 İnteraktif Dersler**
-    - Video eşliğinde öğrenme
-    - Kod örnekleriyle pratik
-    - JSON tabanlı içerik
-    - Adım adım ilerleme
+    💡 **İpucu:** Python öğrenmek bir maraton, sprint değil. Her gün biraz pratik yap, 
+    kod yaz, hata yap, öğren! Başarı senin olacak! 🚀
     """)
 
-with col2:
-    st.info("""
-    **🎯 Mini Testler**
-    - Çoktan seçmeli sorular
-    - Anında geri bildirim
-    - Başarı takibi
-    - Detaylı açıklamalar
-    """)
-    
-    st.info("""
-    **🎮 Kod Bulmacaları**
-    - Eğlenceli challenge'lar
-    - Zorluk seviyeleri
-    - İpucu sistemi
-    - Çözüm örnekleri
-    """)
+elif selected_page == "💻 Kod Sandbox":
+    kod_sandbox()
 
-st.markdown("---")
+elif selected_page == "📖 Dersler":
+    dersler()
 
-# Hızlı başlangıç
-st.subheader("⚡ Hızlı Başlangıç")
+elif selected_page == "🎯 Testler":
+    testler()
 
-col1, col2, col3, col4 = st.columns(4)
+elif selected_page == "🎮 Bulmacalar":
+    bulmacalar()
 
-with col1:
-    if st.button("💻 Kod Dene", use_container_width=True, type="primary"):
-        st.session_state.current_page = "💻 Kod Sandbox"
-        st.rerun()
+elif selected_page == "📊 İlerleme":
+    ilerleme()
 
-with col2:
-    if st.button("📖 Derslere Başla", use_container_width=True):
-        st.session_state.current_page = "📖 Dersler"
-        st.rerun()
-
-with col3:
-    if st.button("🎯 Test Çöz", use_container_width=True):
-        st.session_state.current_page = "🎯 Testler"
-        st.rerun()
-
-with col4:
-    if st.button("🧩 Bulmaca Çöz", use_container_width=True):
-        st.session_state.current_page = "🎮 Bulmacalar"
-        st.rerun()
-
-st.markdown("---")
-
-# Son aktiviteler
-st.subheader("📊 İlerleme Özeti")
-
-tamamlanan_ders = len(st.session_state.ilerleme['tamamlanan_dersler'])
-cozulen_test = len(st.session_state.ilerleme['cozulen_testler'])
-cozulen_bulmaca = len(st.session_state.ilerleme['cozulen_bulmacalar'])
-kod_denemesi = st.session_state.ilerleme['toplam_kod_denemesi']
-
-if tamamlanan_ders == 0 and cozulen_test == 0 and cozulen_bulmaca == 0:
-    st.info("🎯 **Henüz aktiviten yok!** Yukarıdaki butonlardan birini seçerek başla.")
-else:
-    st.success(f"""
-    **✨ Harika ilerliyorsun!**
-    - ✅ {tamamlanan_ders} ders tamamlandı
-    - ✅ {cozulen_test} test çözüldü
-    - ✅ {cozulen_bulmaca} bulmaca çözüldü
-    - ✅ {kod_denemesi} kod denemesi yapıldı
-    """)
-
-st.markdown("---")
-
-# Motivasyon mesajı
-st.info("""
-💡 **İpucu:** Python öğrenmek bir maraton, sprint değil. Her gün biraz pratik yap, 
-kod yaz, hata yap, öğren! Başarı senin olacak! 🚀
-""")
+elif selected_page == "⚙️ Ayarlar":
+    ayarlar()
