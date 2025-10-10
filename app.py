@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 import io
 import contextlib
+import zipfile
+import shutil
 
 # Sayfa yapılandırması
 st.set_page_config(
@@ -141,6 +143,34 @@ def ilerleme_yukle():
     ilerleme_verisi = json_dosya_yukle("data/ilerleme.json")
     if ilerleme_verisi:
         st.session_state.ilerleme = ilerleme_verisi
+
+def zip_yedek_olustur():
+    """data klasörünün ZIP yedeklemesini oluşturur"""
+    try:
+        zip_dosya = f"python_journey_yedek_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        
+        with zipfile.ZipFile(zip_dosya, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            if os.path.exists('data'):
+                for klasor, _, dosyalar in os.walk('data'):
+                    for dosya in dosyalar:
+                        dosya_yolu = os.path.join(klasor, dosya)
+                        arcname = os.path.relpath(dosya_yolu, '.')
+                        zipf.write(dosya_yolu, arcname)
+        
+        return zip_dosya
+    except Exception as e:
+        st.error(f"❌ ZIP yedek oluşturma hatası: {str(e)}")
+        return None
+
+def zip_yedek_geri_yukle(zip_dosya):
+    """ZIP yedeklemesinden verileri geri yükler"""
+    try:
+        with zipfile.ZipFile(zip_dosya, 'r') as zipf:
+            zipf.extractall('.')
+        return True
+    except Exception as e:
+        st.error(f"❌ ZIP yedek geri yükleme hatası: {str(e)}")
+        return False
 
 # Kod Sandbox fonksiyonu
 def kod_sandbox():
@@ -383,8 +413,8 @@ def dersler():
 
     st.markdown("---")
 
-    for ders in dersler_listesi:
-        konu_id = ders.get('konu_id', 0)
+    for idx, ders in enumerate(dersler_listesi):
+        konu_id = ders.get('konu_id', idx)
         konu_baslik = ders.get('konu_baslik', 'İsimsiz Ders')
         aciklama = ders.get('aciklama', '')
         seviye = ders.get('seviye', 'başlangıç')
@@ -392,17 +422,59 @@ def dersler():
         tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
         icon = "✅" if tamamlandi else "📌"
         
-        with st.expander(f"{icon} {konu_baslik} - {seviye.title()}", expanded=False):
+        st.markdown(f"### {icon} {konu_baslik}")
+        st.caption(f"Seviye: {seviye.title()}")
+        
+        with st.expander("📖 Dersi Aç", expanded=False):
             st.write(f"**📝 Açıklama:** {aciklama}")
             
+            if 'video_link' in ders:
+                st.markdown(f"🎥 **Video:** [{ders.get('video_suresi', 'İzle')}]({ders['video_link']})")
+            
+            ders_icerik = ders.get('ders_icerik', {})
+            if ders_icerik:
+                if 'detayli_aciklama' in ders_icerik:
+                    st.markdown("### 📚 Detaylı Açıklama")
+                    st.write(ders_icerik['detayli_aciklama'])
+                
+                if 'ana_kavramlar' in ders_icerik:
+                    st.markdown("### 🔑 Ana Kavramlar")
+                    for kavram in ders_icerik['ana_kavramlar']:
+                        st.write(f"• {kavram}")
+            
+            kod_ornekleri = ders.get('kod_ornekleri', [])
+            if kod_ornekleri:
+                st.markdown("### 💻 Kod Örnekleri")
+                for idx, ornek in enumerate(kod_ornekleri):
+                    st.write(f"**{ornek.get('baslik', f'Örnek {idx+1}')}**")
+                    if 'aciklama' in ornek:
+                        st.info(ornek['aciklama'])
+                    
+                    kod = ornek.get('kod', '')
+                    st.code(kod, language='python')
+                    
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        if st.button(f"🚀 Çalıştır", key=f"kod_ornek_{konu_id}_{idx}"):
+                            st.session_state.deneme_kodu = kod
+                            st.session_state.current_page = "💻 Kod Sandbox"
+                            st.rerun()
+                    with col2:
+                        if st.button(f"📋 Sandbox'a Kopyala", key=f"kopyala_{konu_id}_{idx}"):
+                            st.session_state.deneme_kodu = kod
+                            st.success("✅ Kod Sandbox'a kopyalandı!")
+            
+            st.markdown("---")
+            
             if tamamlandi:
-                st.success("✅ Tamamlandı")
+                st.success("✅ Bu dersi tamamladın!")
             else:
-                if st.button("✓ Tamamla", key=f"tamam_ders_{konu_id}"):
+                if st.button("✓ Dersi Tamamla", key=f"tamam_ders_{konu_id}", type="primary"):
                     if konu_id not in st.session_state.ilerleme['tamamlanan_dersler']:
                         st.session_state.ilerleme['tamamlanan_dersler'].append(konu_id)
                         st.session_state.ilerleme['basari_puani'] += 10
                         ilerleme_kaydet()
+                        st.balloons()
                         st.rerun()
 
 # Testler fonksiyonu
@@ -646,8 +718,9 @@ def ilerleme():
 def ayarlar():
     st.markdown("<h1 class='main-header'>⚙️ Ayarlar ve Veri Yönetimi</h1>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["📁 Dosya Yönetimi", "🎨 Görünüm", "ℹ️ Hakkında"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📁 Dosya Yönetimi", "📋 Metin ile Yükleme", "💾 Yedekleme", "ℹ️ Hakkında"])
     
+    # TAB 1: Dosya Yönetimi
     with tab1:
         st.subheader("📥 JSON Dosya Yükleme")
         st.write("Ders, test veya bulmaca içeriklerini JSON formatında yükle")
@@ -723,93 +796,171 @@ def ayarlar():
                 for bulmaca in bulmacalar:
                     st.write(f"  • {bulmaca.get('konu_baslik', 'İsimsiz')}")
     
+    # TAB 2: Metin ile Yükleme
     with tab2:
-        st.subheader("🎨 Görünüm Ayarları")
-        st.info("Streamlit ayarlarından tema ve yazı boyutunu değiştirebilirsiniz.")
-        st.write("⚙️ Sağ üst köşedeki menüden **Settings** → **Theme** seçeneğine giderek tema değiştirebilirsiniz.")
+        st.subheader("📋 JSON Metin ile Yükleme")
+        st.write("JSON kodunu doğrudan yapıştırarak yükleme yapabilirsiniz")
+        
+        yp_secim = st.radio("Ne yüklemek istiyorsunuz?", ["📚 Ders", "🎯 Test", "🧩 Bulmaca"], horizontal=True)
+        
+        json_metni = st.text_area(
+            "JSON İçeriğini yapıştırın:",
+            height=400,
+            placeholder='{"konu_id": 1, "konu_baslik": "..."}'
+        )
+        
+        if st.button("✅ Yükle", type="primary", use_container_width=True):
+            if json_metni.strip():
+                try:
+                    veri = json.loads(json_metni)
+                    
+                    if yp_secim == "📚 Ders":
+                        dosya_adi = f"ders_{veri.get('konu_id', 'yeni')}.json"
+                        kayit_yolu = f"data/dersler/{dosya_adi}"
+                    elif yp_secim == "🎯 Test":
+                        dosya_adi = f"test_{veri.get('konu_id', 'yeni')}.json"
+                        kayit_yolu = f"data/testler/{dosya_adi}"
+                    else:
+                        dosya_adi = f"bulmaca_{veri.get('konu_id', 'yeni')}.json"
+                        kayit_yolu = f"data/bulmacalar/{dosya_adi}"
+                    
+                    if json_dosya_kaydet(kayit_yolu, veri):
+                        st.success(f"✅ {dosya_adi} başarıyla yüklendi!")
+                        st.info(f"📂 Konumu: {kayit_yolu}")
+                except json.JSONDecodeError as e:
+                    st.error(f"❌ JSON Hatası: {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Hata: {str(e)}")
+            else:
+                st.warning("⚠️ Lütfen JSON içeriği yapıştırın")
+        
+        st.markdown("---")
+        st.subheader("📝 Örnek JSON Formatları")
+        
+        if st.checkbox("📚 Ders Örneğini Göster"):
+            st.code('''
+{
+  "konu_id": 1,
+  "konu_baslik": "Stringler",
+  "aciklama": "Metin işlemleri",
+  "seviye": "başlangıç",
+  "video_link": "https://youtube.com/...",
+  "video_suresi": "35:12",
+  "ders_icerik": {
+    "detayli_aciklama": "...",
+    "ana_kavramlar": ["Kavram 1", "Kavram 2"]
+  },
+  "kod_ornekleri": [
+    {
+      "baslik": "Örnek 1",
+      "kod": "print('Merhaba')",
+      "aciklama": "Basit print örneği"
+    }
+  ]
+}
+            ''', language='json')
+        
+        if st.checkbox("🎯 Test Örneğini Göster"):
+            st.code('''
+{
+  "konu_id": 1,
+  "konu_baslik": "Stringler Testi",
+  "test_sorulari": [
+    {
+      "soru": "Python'da string nasıl tanımlanır?",
+      "secenekler": ["A) '...'", "B) ...", "C) ...", "D) ..."],
+      "cevap": "A",
+      "aciklama": "Stringler tırnak içine alınır",
+      "zorluk": "kolay"
+    }
+  ]
+}
+            ''', language='json')
+        
+        if st.checkbox("🧩 Bulmaca Örneğini Göster"):
+            st.code('''
+{
+  "konu_id": 1,
+  "konu_baslik": "String Bulmacaları",
+  "bulmacalar": [
+    {
+      "soru": "String'i tersten yazdırın",
+      "ipucu": "[::-1] kullanabilirsiniz",
+      "cozum": "kelime = 'python'\\nprint(kelime[::-1])",
+      "zorluk": "kolay"
+    }
+  ]
+}
+            ''', language='json')
     
+    # TAB 3: Yedekleme
     with tab3:
+        st.subheader("💾 Yedekleme ve Geri Yükleme")
+        st.write("Tüm verilerinizi ZIP dosyası olarak yedekleyin veya geri yükleyin")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if st.button("💾 Yedek Oluştur", use_container_width=True, type="primary"):
+                zip_dosya = zip_yedek_olustur()
+                if zip_dosya:
+                    with open(zip_dosya, 'rb') as f:
+                        st.download_button(
+                            label="📥 Yedek İndir",
+                            data=f,
+                            file_name=zip_dosya,
+                            mime="application/zip"
+                        )
+                    st.success(f"✅ Yedek oluşturuldu: {zip_dosya}")
+        
+        with col2:
+            st.write("**📤 Yedekten Geri Yükle**")
+            yuklenecek_zip = st.file_uploader("ZIP Dosyasını Seçin", type=['zip'], key="yedek_upload")
+            if yuklenecek_zip is not None:
+                if st.button("🔄 Geri Yükle", type="secondary", use_container_width=True):
+                    try:
+                        with open("temp_yedek.zip", "wb") as f:
+                            f.write(yuklenecek_zip.getbuffer())
+                        
+                        if zip_yedek_geri_yukle("temp_yedek.zip"):
+                            st.success("✅ Yedek başarıyla geri yüklendi!")
+                            os.remove("temp_yedek.zip")
+                            st.balloons()
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Hata: {str(e)}")
+        
+        st.markdown("---")
+        st.info("""
+        **💡 Bilgi:**
+        - Yedek oluştur: Tüm data klasörünü ZIP'le
+        - Geri yükle: Önceki yedekten tüm verileri geri al
+        - Yedekler: İlerlemesi, dersler, testler ve bulmacalar dahil
+        """)
+    
+    # TAB 4: Hakkında
+    with tab4:
         st.subheader("ℹ️ Python Journey Hakkında")
         st.markdown("""
-        ### 🐍 Python Journey v2.0
+        ### 🐍 Python Journey v2.1
         
-        **Özellikler:**
+        **Yeni Özellikler:**
+        - ✨ Metin ile JSON yükleme
+        - ✨ ZIP yedekleme sistemi
+        - ✨ Geliştirilmiş ders gösterimi
+        
+        **Tüm Özellikler:**
         - 💻 Canlı Kod Sandbox
         - 📚 İnteraktif Dersler
         - 🎯 Mini Testler
         - 🧩 Kod Bulmacaları
         - 📊 İlerleme Takibi
         - 📁 JSON Tabanlı İçerik Sistemi
-        
-        **JSON Format Örnekleri:**
-        
-        📚 **Ders Formatı:**
-        ```json
-        {
-          "konu_id": 1,
-          "konu_baslik": "Stringler",
-          "aciklama": "Metin işlemleri",
-          "seviye": "başlangıç",
-          "video_link": "https://youtube.com/...",
-          "video_suresi": "35:12",
-          "ders_icerik": {
-            "detayli_aciklama": "...",
-            "ana_kavramlar": ["..."]
-          },
-          "kod_ornekleri": [
-            {
-              "baslik": "Örnek 1",
-              "kod": "print('Merhaba')",
-              "aciklama": "..."
-            }
-          ]
-        }
-        ```
-        
-        🎯 **Test Formatı:**
-        ```json
-        {
-          "konu_id": 1,
-          "konu_baslik": "Stringler Testi",
-          "test_sorulari": [
-            {
-              "soru": "Python'da string nasıl tanımlanır?",
-              "secenekler": ["A) '...'", "B) ...", "C) ...", "D) ..."],
-              "cevap": "A",
-              "aciklama": "...",
-              "zorluk": "kolay"
-            }
-          ]
-        }
-        ```
-        
-        🧩 **Bulmaca Formatı:**
-        ```json
-        {
-          "konu_id": 1,
-          "konu_baslik": "String Bulmacaları",
-          "bulmacalar": [
-            {
-              "soru": "String'i tersten yazdırın",
-              "ipucu": "[::-1] kullanabilirsiniz",
-              "cozum": "kelime = 'python'\\nprint(kelime[::-1])",
-              "zorluk": "kolay"
-            }
-          ]
-        }
-        ```
+        - 💾 Yedekleme Sistemi
         
         **Geliştirici:** Python Journey Team
-        **Versiyon:** 2.0
+        **Versiyon:** 2.1
         **Tarih:** 2024
-        
-        ---
-        
-        💡 **İpucu:** JSON dosyalarını `data/` klasörü altında organize edin:
-        - `data/dersler/` - Ders içerikleri
-        - `data/testler/` - Test soruları
-        - `data/bulmacalar/` - Bulmacalar
-        - `data/ilerleme.json` - İlerleme verileri
         """)
         
         st.success("🚀 Öğrenmeye devam et!")
@@ -961,211 +1112,3 @@ elif selected_page == "📊 İlerleme":
 
 elif selected_page == "⚙️ Ayarlar":
     ayarlar()
-
-# Dersler fonksiyonu
-def dersler():
-    st.markdown("<h1 class='main-header'>📖 Python Dersleri</h1>", unsafe_allow_html=True)
-    st.write("Adım adım Python öğren! Her ders video eşliğinde, kod örnekleriyle.")
-    
-    dersler_listesi = tum_dersleri_yukle()
-    
-    if not dersler_listesi:
-        st.warning("📂 Henüz ders içeriği yüklenmemiş.")
-        st.info("""
-        **Ders eklemek için:**
-        1. `data/dersler/` klasörü oluştur
-        2. JSON formatında ders dosyalarını ekle
-        3. Örnek format:
-```json
-{
-  "konu_id": 1,
-  "konu_baslik": "Stringler",
-  "aciklama": "Metin işlemleri",
-  "seviye": "başlangıç"
-}
-```
-        """)
-        return
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📚 Toplam Ders", len(dersler_listesi))
-    with col2:
-        tamamlanan = len(st.session_state.ilerleme['tamamlanan_dersler'])
-        st.metric("✅ Tamamlanan", tamamlanan)
-    with col3:
-        if len(dersler_listesi) > 0:
-            yuzde = int((tamamlanan / len(dersler_listesi)) * 100)
-            st.metric("📊 İlerleme", f"%{yuzde}")
-
-    st.markdown("---")
-
-    for ders in dersler_listesi:
-        konu_id = ders.get('konu_id', 0)
-        konu_baslik = ders.get('konu_baslik', 'İsimsiz Ders')
-        aciklama = ders.get('aciklama', '')
-        seviye = ders.get('seviye', 'başlangıç')
-        
-        tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
-        icon = "✅" if tamamlandi else "📌"
-        
-        with st.expander(f"{icon} {konu_baslik} - {seviye.title()}", expanded=False):
-            st.write(f"**📝 Açıklama:** {aciklama}")
-            
-            # Video linki varsa göster
-            if 'video_link' in ders:
-                st.markdown(f"🎥 **Video:** [{ders.get('video_suresi', 'İzle')}]({ders['video_link']})")
-            
-            # Detaylı içerik varsa göster
-            ders_icerik = ders.get('ders_icerik', {})
-            if ders_icerik:
-                if 'detayli_aciklama' in ders_icerik:
-                    st.markdown("### 📚 Detaylı Açıklama")
-                    st.write(ders_icerik['detayli_aciklama'])
-                
-                if 'ana_kavramlar' in ders_icerik:
-                    st.markdown("### 🔑 Ana Kavramlar")
-                    for kavram in ders_icerik['ana_kavramlar']:
-                        st.write(f"• {kavram}")
-            
-            # Kod örnekleri varsa göster
-            kod_ornekleri = ders.get('kod_ornekleri', [])
-            if kod_ornekleri:
-                st.markdown("### 💻 Kod Örnekleri")
-                for idx, ornek in enumerate(kod_ornekleri):
-                    st.write(f"**{ornek.get('baslik', f'Örnek {idx+1}')}**")
-                    if 'aciklama' in ornek:
-                        st.info(ornek['aciklama'])
-                    
-                    kod = ornek.get('kod', '')
-                    st.code(kod, language='python')
-                    
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        if st.button(f"🚀 Çalıştır", key=f"kod_ornek_{konu_id}_{idx}"):
-                            st.session_state.deneme_kodu = kod
-                            st.session_state.current_page = "💻 Kod Sandbox"
-                            st.rerun()
-                    with col2:
-                        if st.button(f"📋 Sandbox'a Kopyala", key=f"kopyala_{konu_id}_{idx}"):
-                            st.session_state.deneme_kodu = kod
-                            st.success("✅ Kod Sandbox'a kopyalandı!")
-            
-            st.markdown("---")
-            
-            if tamamlandi:
-                st.success("✅ Bu dersi tamamladın!")
-            else:
-                if st.button("✓ Dersi Tamamla", key=f"tamam_ders_{konu_id}", type="primary"):
-                    if konu_id not in st.session_state.ilerleme['tamamlanan_dersler']:
-                        st.session_state.ilerleme['tamamlanan_dersler'].append(konu_id)
-                        st.session_state.ilerleme['basari_puani'] += 10
-                        ilerleme_kaydet()
-                        st.balloons()
-                        st.rerun()
-
-# Dersler fonksiyonu
-def dersler():
-    st.markdown("<h1 class='main-header'>📖 Python Dersleri</h1>", unsafe_allow_html=True)
-    st.write("Adım adım Python öğren! Her ders video eşliğinde, kod örnekleriyle.")
-    
-    dersler_listesi = tum_dersleri_yukle()
-    
-    if not dersler_listesi:
-        st.warning("📂 Henüz ders içeriği yüklenmemiş.")
-        st.info("""
-        **Ders eklemek için:**
-        1. `data/dersler/` klasörü oluştur
-        2. JSON formatında ders dosyalarını ekle
-        3. Örnek format:
-```json
-{
-  "konu_id": 1,
-  "konu_baslik": "Stringler",
-  "aciklama": "Metin işlemleri",
-  "seviye": "başlangıç"
-}
-```
-        """)
-        return
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("📚 Toplam Ders", len(dersler_listesi))
-    with col2:
-        tamamlanan = len(st.session_state.ilerleme['tamamlanan_dersler'])
-        st.metric("✅ Tamamlanan", tamamlanan)
-    with col3:
-        if len(dersler_listesi) > 0:
-            yuzde = int((tamamlanan / len(dersler_listesi)) * 100)
-            st.metric("📊 İlerleme", f"%{yuzde}")
-
-    st.markdown("---")
-
-    for idx, ders in enumerate(dersler_listesi):
-        konu_id = ders.get('konu_id', idx)
-        konu_baslik = ders.get('konu_baslik', 'İsimsiz Ders')
-        aciklama = ders.get('aciklama', '')
-        seviye = ders.get('seviye', 'başlangıç')
-        
-        tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
-        icon = "✅" if tamamlandi else "📌"
-        
-        # Her ders için container kullan
-        st.markdown(f"### {icon} {konu_baslik}")
-        st.caption(f"Seviye: {seviye.title()}")
-        
-        with st.expander("📖 Dersi Aç", expanded=False):
-            st.write(f"**📝 Açıklama:** {aciklama}")
-            
-            # Video linki varsa göster
-            if 'video_link' in ders:
-                st.markdown(f"🎥 **Video:** [{ders.get('video_suresi', 'İzle')}]({ders['video_link']})")
-            
-            # Detaylı içerik varsa göster
-            ders_icerik = ders.get('ders_icerik', {})
-            if ders_icerik:
-                if 'detayli_aciklama' in ders_icerik:
-                    st.markdown("### 📚 Detaylı Açıklama")
-                    st.write(ders_icerik['detayli_aciklama'])
-                
-                if 'ana_kavramlar' in ders_icerik:
-                    st.markdown("### 🔑 Ana Kavramlar")
-                    for kavram in ders_icerik['ana_kavramlar']:
-                        st.write(f"• {kavram}")
-            
-            # Kod örnekleri varsa göster
-            kod_ornekleri = ders.get('kod_ornekleri', [])
-            if kod_ornekleri:
-                st.markdown("### 💻 Kod Örnekleri")
-                for idx, ornek in enumerate(kod_ornekleri):
-                    st.write(f"**{ornek.get('baslik', f'Örnek {idx+1}')}**")
-                    if 'aciklama' in ornek:
-                        st.info(ornek['aciklama'])
-                    
-                    kod = ornek.get('kod', '')
-                    st.code(kod, language='python')
-                    
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        if st.button(f"🚀 Çalıştır", key=f"kod_ornek_{konu_id}_{idx}"):
-                            st.session_state.deneme_kodu = kod
-                            st.session_state.current_page = "💻 Kod Sandbox"
-                            st.rerun()
-                    with col2:
-                        if st.button(f"📋 Sandbox'a Kopyala", key=f"kopyala_{konu_id}_{idx}"):
-                            st.session_state.deneme_kodu = kod
-                            st.success("✅ Kod Sandbox'a kopyalandı!")
-            
-            st.markdown("---")
-            
-            if tamamlandi:
-                st.success("✅ Bu dersi tamamladın!")
-            else:
-                if st.button("✓ Dersi Tamamla", key=f"tamam_ders_{konu_id}", type="primary"):
-                    if konu_id not in st.session_state.ilerleme['tamamlanan_dersler']:
-                        st.session_state.ilerleme['tamamlanan_dersler'].append(konu_id)
-                        st.session_state.ilerleme['basari_puani'] += 10
-                        ilerleme_kaydet()
-                        st.balloons()
-                        st.rerun()
