@@ -104,7 +104,7 @@ def tum_dersleri_yukle():
                 if ders_verisi:
                     dersler.append(ders_verisi)
     
-    return dersler
+    return list(reversed(dersler))
 
 def tum_testleri_yukle():
     """data/testler klasöründeki tüm JSON dosyalarını yükler"""
@@ -118,7 +118,7 @@ def tum_testleri_yukle():
                 if test_verisi:
                     testler.append(test_verisi)
     
-    return testler
+    return list(reversed(testler))
 
 def tum_bulmacalari_yukle():
     """data/bulmacalar klasöründeki tüm JSON dosyalarını yükler"""
@@ -132,7 +132,7 @@ def tum_bulmacalari_yukle():
                 if bulmaca_verisi:
                     bulmacalar.append(bulmaca_verisi)
     
-    return bulmacalar
+    return list(reversed(bulmacalar))
 
 def ilerleme_kaydet():
     """İlerleme verilerini kaydeder"""
@@ -420,9 +420,9 @@ def dersler():
         seviye = ders.get('seviye', 'başlangıç')
         
         tamamlandi = konu_id in st.session_state.ilerleme['tamamlanan_dersler']
-        icon = "✅" if tamamlandi else "📌"
+        icon = "✅" if tamamlandi else "○"
         
-        st.markdown(f"### {icon} {konu_baslik}")
+        st.markdown(f"## {icon} {konu_baslik}")
         st.caption(f"Seviye: {seviye.title()}")
         
         with st.expander("📖 Dersi Aç", expanded=False):
@@ -453,16 +453,32 @@ def dersler():
                     kod = ornek.get('kod', '')
                     st.code(kod, language='python')
                     
-                    col1, col2 = st.columns([1, 3])
+                    col1, col2, col3 = st.columns([1, 1, 2])
                     with col1:
                         if st.button(f"🚀 Çalıştır", key=f"kod_ornek_{konu_id}_{idx}"):
-                            st.session_state.deneme_kodu = kod
-                            st.session_state.current_page = "💻 Kod Sandbox"
-                            st.rerun()
+                            try:
+                                output = io.StringIO()
+                                with contextlib.redirect_stdout(output):
+                                    exec(kod, {'__builtins__': __builtins__})
+                                
+                                result = output.getvalue()
+                                if result:
+                                    st.success(result)
+                                else:
+                                    st.success("✅ Kod başarıyla çalıştı (çıktı yok)")
+                            except Exception as e:
+                                st.error(f"❌ Hata: {str(e)}")
+                    
                     with col2:
                         if st.button(f"📋 Sandbox'a Kopyala", key=f"kopyala_{konu_id}_{idx}"):
                             st.session_state.deneme_kodu = kod
                             st.success("✅ Kod Sandbox'a kopyalandı!")
+                    
+                    with col3:
+                        if st.button(f"→ Sandbox'a Git", key=f"sandbox_git_{konu_id}_{idx}"):
+                            st.session_state.deneme_kodu = kod
+                            st.session_state.current_page = "💻 Kod Sandbox"
+                            st.rerun()
             
             st.markdown("---")
             
@@ -509,7 +525,7 @@ def testler():
             continue
         
         cozuldu = test_id in st.session_state.ilerleme['cozulen_testler']
-        icon = "✅" if cozuldu else "📝"
+        icon = "✅" if cozuldu else "○"
         
         with st.expander(f"{icon} {konu} - {len(sorular)} soru", expanded=False):
             if cozuldu:
@@ -593,7 +609,7 @@ def bulmacalar():
             continue
         
         cozuldu = bulmaca_id in st.session_state.ilerleme['cozulen_bulmacalar']
-        icon = "✅" if cozuldu else "🧩"
+        icon = "✅" if cozuldu else "○"
         
         with st.expander(f"{icon} {konu} - {len(bulmacalar_list)} bulmaca", expanded=False):
             for idx, bulmaca in enumerate(bulmacalar_list):
@@ -942,16 +958,16 @@ def ayarlar():
     with tab4:
         st.subheader("ℹ️ Python Journey Hakkında")
         st.markdown("""
-        ### 🐍 Python Journey v2.1
+        ### 🐍 Python Journey v2.2
         
-        **Yeni Özellikler:**
-        - ✨ Metin ile JSON yükleme
-        - ✨ ZIP yedekleme sistemi
-        - ✨ Geliştirilmiş ders gösterimi
+        **Son Güncellemeler:**
+        - ✨ Derslerde anında kod çalıştırma
+        - ✨ Ters sıralama (son yüklenenler üstte)
+        - ✨ Sade ve temiz görünüm
         
         **Tüm Özellikler:**
         - 💻 Canlı Kod Sandbox
-        - 📚 İnteraktif Dersler
+        - 📚 İnteraktif Dersler (derste doğrudan çalıştırma)
         - 🎯 Mini Testler
         - 🧩 Kod Bulmacaları
         - 📊 İlerleme Takibi
@@ -959,7 +975,7 @@ def ayarlar():
         - 💾 Yedekleme Sistemi
         
         **Geliştirici:** Python Journey Team
-        **Versiyon:** 2.1
+        **Versiyon:** 2.2
         **Tarih:** 2024
         """)
         
